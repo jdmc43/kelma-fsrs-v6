@@ -1,0 +1,59 @@
+name: Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  jvm-android-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Verify generated fixture sources
+        run: |
+          ./tools/embed_fixture.py
+          ./tools/verify_optimizer_fixture.py
+          git diff --exit-code -- src/commonTest/kotlin/tech/kelma/fsrs/OracleFixtureData.kt
+      - name: Test JVM, Android host, and Linux Native
+        run: ./gradlew jvmTest testAndroidHostTest linuxX64Test
+
+  optimizer-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Reproduce pinned optimizer fixture
+        run: ./tools/optimizer_oracle/generate.sh
+      - name: Verify canonical optimizer fixture
+        run: |
+          ./tools/verify_optimizer_fixture.py
+          git diff --exit-code -- testdata/fsrs-optimizer-6.5.0-vectors.json
+
+  apple:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test macOS and iOS Simulator Native targets
+        run: >-
+          ./gradlew
+          macosArm64Test
+          macosX64Test
+          iosSimulatorArm64Test

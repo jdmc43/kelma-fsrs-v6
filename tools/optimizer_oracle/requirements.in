@@ -1,0 +1,2 @@
+fsrs-optimizer==6.5.0
+torch==2.9.1+cpu
